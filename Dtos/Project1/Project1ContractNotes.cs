@@ -1,27 +1,26 @@
 namespace MegaFintradeRiskMonitor.Dtos.Project1;
 
 /// <summary>
-/// Contract notes for Project 1 integration.
+/// Contract notes for Mega Fintrade Backend Java integration.
 ///
-/// Current confirmed Project 1 public README endpoints:
-/// - GET /api/positions
-/// - POST /api/positions
-/// - POST /api/positions/batch
-/// - GET /api/positions/{id}
-/// - GET /api/positions/{id}/pnl/{price}
-///
-/// Planned Project 4 monitoring endpoints from Project 1:
+/// Planned monitoring endpoints:
 /// - GET /api/reports/summary
 /// - GET /api/import/audit
 /// - GET /api/import/rejections
 ///
-/// Do not finalize monitoring DTO fields until Project 1 exposes and documents
-/// the final JSON response contracts for the reporting and import endpoints.
+/// Dynamic symbol support rule:
+/// Mega Fintrade Risk Monitor must not hard-code stock symbols.
+/// The Java backend may currently expose data derived from a fixed upstream
+/// strategy symbol list, but this monitor should remain symbol-agnostic.
+///
+/// When the Java backend exposes symbol-level metrics, the monitor should
+/// consume and display whatever symbols are returned by the backend.
+///
+/// If the Java backend only exposes portfolio-level metrics, the monitor should
+/// continue operating with portfolio-level and system-level alerts only.
 /// </summary>
 public static class Project1ContractNotes
 {
-    public const string PositionsEndpoint = "/api/positions";
-
     public const string PlannedReportSummaryEndpoint = "/api/reports/summary";
 
     public const string PlannedImportAuditEndpoint = "/api/import/audit";

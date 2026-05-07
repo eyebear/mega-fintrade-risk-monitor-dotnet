@@ -14,13 +14,9 @@ builder.Services.Configure<AlertRuleOptions>(
 builder.Services.Configure<MonitoringOptions>(
     builder.Configuration.GetSection(MonitoringOptions.SectionName));
 
-// Razor Pages are used for the monitoring dashboard.
 builder.Services.AddRazorPages();
-
-// Controllers are used for REST APIs such as health, monitor, alerts, and future Project 1 status endpoints.
 builder.Services.AddControllers();
 
-// Swagger is useful for API testing during development.
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
@@ -38,6 +34,7 @@ else
 }
 
 app.UseHttpsRedirection();
+
 app.UseStaticFiles();
 
 app.UseRouting();

@@ -91,6 +91,22 @@ Current planned local Java backend base URL:
 
 http://localhost:8080
 
+## Dynamic Symbol Compatibility
+
+Mega Fintrade Risk Monitor is designed to support both the current Java backend behavior and a future flexible-symbol backend design.
+
+The monitoring service must not hard-code stock symbols such as AAPL, MSFT, GOOGL, or SPY.
+
+Symbol selection belongs upstream to Mega Fintrade Quant Engine and Mega Fintrade Backend Java. Mega Fintrade Risk Monitor consumes whatever symbols the Java backend returns.
+
+If the Java backend returns only portfolio-level metrics, Mega Fintrade Risk Monitor evaluates portfolio-level and system-level rules only.
+
+If the Java backend later returns symbol-level metrics, Mega Fintrade Risk Monitor evaluates both portfolio-level and symbol-level rules dynamically.
+
+Risk alerts should support an optional symbol field. A null symbol represents a system-level or portfolio-level alert. A non-null symbol represents a symbol-specific alert.
+
+Duplicate active alert prevention should use alert type, symbol, and source endpoint together instead of alert type alone.
+
 ## AI Integration Boundary
 
 Mega Fintrade Risk Monitor is AI-ready, but it does not directly manage AI providers.

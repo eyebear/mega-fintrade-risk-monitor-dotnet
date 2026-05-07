@@ -13,7 +13,8 @@ public class HealthController : ControllerBase
         {
             service = "mega-fintrade-risk-monitor-dotnet",
             status = "UP",
-            role = "Project 4 - C#/.NET Risk Monitoring and Alerting Service",
+            role = "Mega Fintrade Risk Monitor .NET",
+            description = "C#/.NET risk monitoring, alerting, dashboard, and AI-ready integration service",
             timestampUtc = DateTime.UtcNow
         });
     }
