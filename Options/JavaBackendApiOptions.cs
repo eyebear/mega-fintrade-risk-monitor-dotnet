@@ -1,8 +1,8 @@
 namespace MegaFintradeRiskMonitor.Options;
 
-public class Project1ApiOptions
+public class JavaBackendApiOptions
 {
-    public const string SectionName = "Project1Api";
+    public const string SectionName = "JavaBackendApi";
 
     public string BaseUrl { get; set; } = "http://localhost:8080";
 
