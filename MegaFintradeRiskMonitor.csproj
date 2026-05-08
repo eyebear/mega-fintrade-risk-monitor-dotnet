@@ -4,6 +4,14 @@
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <Authors>Ao Ao Feng</Authors>
+    <Company>Ao Ao Feng</Company>
+    <Product>Mega Fintrade Risk Monitor</Product>
+    <Description>C#/.NET risk monitoring, alerting, dashboard, and AI-ready integration service for the Mega Fintrade Platform.</Description>
+    <Copyright>Copyright 2026 Ao Ao Feng</Copyright>
+    <PackageProjectUrl>https://github.com/eyebear/mega-fintrade-risk-monitor-dotnet</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/eyebear/mega-fintrade-risk-monitor-dotnet</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
   </PropertyGroup>
 
   <ItemGroup>

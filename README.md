@@ -86,6 +86,26 @@ Core components:
 
 ---
 
+## Documentation
+
+Detailed project documentation is available in the `docs/` folder.
+
+| Document | Purpose |
+|---|---|
+| `docs/java-backend-api-dependencies.md` | Explains Java backend endpoints consumed by the monitor |
+| `docs/alert-rules.md` | Explains alert rules, thresholds, severity, and duplicate prevention |
+| `docs/dynamic-symbol-compatibility.md` | Explains portfolio-only and future symbol-level support |
+| `docs/api-reference.md` | Documents monitor, alert, health, and AI status APIs |
+| `docs/dashboard-usage.md` | Explains how to use the Razor Pages dashboard |
+| `docs/ai-ready-design.md` | Explains the boundary between Project 4 and future Project 5 |
+| `docs/docker-usage.md` | Explains Docker build, Docker Compose, SQLite volume, and troubleshooting |
+
+A Postman API collection is available at:
+
+    postman/mega-fintrade-risk-monitor.postman_collection.json
+
+---
+
 ## Java Backend API Dependencies
 
 Mega Fintrade Risk Monitor consumes the following Java backend endpoints:
@@ -269,6 +289,8 @@ Active alerts API:
 
 ![Active Alerts API](docs/screenshots/active-alerts.png)
 
+---
+
 ## Docker Backend URL Rules
 
 The Java backend URL is different depending on where the Java backend runs.
@@ -434,9 +456,17 @@ From inside the risk monitor container:
 | GET | `/api/health` | Basic health check |
 | GET | `/api/monitor/status` | Current monitoring status |
 | POST | `/api/monitor/run` | Manually trigger monitoring |
+| GET | `/api/monitor/java-backend/reachable` | Check Java backend reachability |
+| GET | `/api/monitor/java-backend/report-summary` | Read Java backend report summary through monitor client |
+| GET | `/api/monitor/java-backend/import-audit` | Read Java backend import audit through monitor client |
+| GET | `/api/monitor/java-backend/import-rejections` | Read Java backend import rejections through monitor client |
+| GET | `/api/monitor/rule-evaluation` | Inspect current rule evaluation state |
 | GET | `/api/alerts` | Return all alerts |
 | GET | `/api/alerts/active` | Return active alerts |
 | GET | `/api/alerts/history` | Return alert history |
+| GET | `/api/alerts/{id}` | Return one alert |
+| DELETE | `/api/alerts/{id}` | Delete one alert if cleanup is needed |
+| POST | `/api/alerts/{id}/resolve` | Resolve one alert |
 | GET | `/api/ai/status` | Return AI integration status |
 
 Swagger UI:
@@ -490,8 +520,23 @@ Mega Fintrade Risk Monitor currently includes:
 - Docker-specific configuration
 - SQLite Docker volume
 - Optional future AI advisor environment settings
+- Detailed documentation under `docs/`
+- Postman API collection
+- Portfolio screenshots
 
 The project can be run directly with .NET or through Docker Compose.
+
+---
+
+## Author
+
+Developed by Ao Ao Feng.
+
+This project is part of the Mega Fintrade Platform portfolio, a multi-service financial data engineering and risk monitoring system built with Java, Python, C++, and C#/.NET.
+
+Repository:
+
+    https://github.com/eyebear/mega-fintrade-risk-monitor-dotnet
 
 ---
 
@@ -508,4 +553,4 @@ Mega Fintrade Risk Monitor follows these design principles:
 - Provider tokens should never be stored in the monitoring service.
 - Docker should support repeatable local runtime testing.
 - Local development should remain simple and free.
-- The project should remain portfolio-ready with CI, tests, documentation, and Docker support.
+- The project should remain portfolio-ready with CI, tests, documentation, Docker support, and clear ownership metadata.
