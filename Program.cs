@@ -1,7 +1,7 @@
-using MegaFintradeRiskMonitor.Services;
 using MegaFintradeRiskMonitor.Clients;
 using MegaFintradeRiskMonitor.Data;
 using MegaFintradeRiskMonitor.Options;
+using MegaFintradeRiskMonitor.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
