@@ -314,30 +314,43 @@
         <div class="dashboard-card">
             <h2>AI Decision Support</h2>
 
+            @{
+                var aiStatusClass = DashboardModel.GetAiStatusCssClass(Model.AiIntegrationStatus);
+            }
+
             <div class="status-row">
                 <span class="status-label">AI Advisor</span>
-                <span class="status-badge @(Model.AiIntegrationEnabled ? "status-warning" : "status-neutral")">
-                    @(Model.AiIntegrationEnabled ? "Configured" : "Disabled")
+                <span class="status-badge @aiStatusClass">
+                    @(Model.AiIntegrationStatus?.Status ?? "UNKNOWN")
                 </span>
             </div>
 
             <div class="status-details">
                 <div>
-                    <strong>Mode:</strong>
-                    <span>
-                        @(Model.AiIntegrationEnabled ? "Optional external advisor service" : "Reserved for future AI advisor")
-                    </span>
+                    <strong>Enabled:</strong>
+                    <span>@Model.AiIntegrationEnabled</span>
                 </div>
                 <div>
                     <strong>Advisor URL:</strong>
                     <span>@Model.AiAdvisorBaseUrl</span>
                 </div>
                 <div>
-                    <strong>Status:</strong>
-                    <span>
-                        AI Decision Support is intentionally separated from core monitoring.
-                    </span>
+                    <strong>Mode:</strong>
+                    <span>@(Model.AiIntegrationStatus?.Mode ?? "N/A")</span>
                 </div>
+                <div>
+                    <strong>Reachable:</strong>
+                    <span>@(Model.AiIntegrationStatus?.AdvisorReachable ?? false)</span>
+                </div>
+                <div>
+                    <strong>Message:</strong>
+                    <span>@(Model.AiIntegrationStatus?.Message ?? "AI status unavailable.")</span>
+                </div>
+            </div>
+
+            <div class="dashboard-note">
+                Provider selection, API token management, prompt construction, AI audit logging,
+                and AI history belong to the future AI advisor service, not this risk monitor.
             </div>
         </div>
     </section>
@@ -353,11 +366,9 @@
             </div>
 
             <form method="get" class="symbol-filter-form">
-                <input
-                    type="text"
-                    name="SymbolFilter"
-                    value="@DashboardModel.NormalizeSymbolForDisplay(Model.SymbolFilter)"
-                    placeholder="Optional symbol filter" />
+                <input type="text" name="SymbolFilter"
+                       value="@DashboardModel.NormalizeSymbolForDisplay(Model.SymbolFilter)"
+                       placeholder="Optional symbol filter" />
 
                 <button type="submit" class="secondary-button">
                     Apply

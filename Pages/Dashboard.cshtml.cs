@@ -1,4 +1,5 @@
 using MegaFintradeRiskMonitor.Clients;
+using MegaFintradeRiskMonitor.Dtos.Ai;
 using MegaFintradeRiskMonitor.Dtos.Project1;
 using MegaFintradeRiskMonitor.Models;
 using MegaFintradeRiskMonitor.Options;
@@ -14,6 +15,7 @@ public class DashboardModel : PageModel
     private readonly IJavaBackendApiClient _javaBackendApiClient;
     private readonly IAlertService _alertService;
     private readonly IRiskMonitoringService _riskMonitoringService;
+    private readonly IAiDecisionSupportClient _aiDecisionSupportClient;
     private readonly JavaBackendApiOptions _javaBackendApiOptions;
     private readonly AiIntegrationOptions _aiIntegrationOptions;
 
@@ -21,12 +23,14 @@ public class DashboardModel : PageModel
         IJavaBackendApiClient javaBackendApiClient,
         IAlertService alertService,
         IRiskMonitoringService riskMonitoringService,
+        IAiDecisionSupportClient aiDecisionSupportClient,
         IOptions<JavaBackendApiOptions> javaBackendApiOptions,
         IOptions<AiIntegrationOptions> aiIntegrationOptions)
     {
         _javaBackendApiClient = javaBackendApiClient;
         _alertService = alertService;
         _riskMonitoringService = riskMonitoringService;
+        _aiDecisionSupportClient = aiDecisionSupportClient;
         _javaBackendApiOptions = javaBackendApiOptions.Value;
         _aiIntegrationOptions = aiIntegrationOptions.Value;
     }
@@ -69,6 +73,8 @@ public class DashboardModel : PageModel
 
     public RiskMonitoringRunResult? ManualRunResult { get; private set; }
 
+    public AiIntegrationStatusDto? AiIntegrationStatus { get; private set; }
+
     public bool AiIntegrationEnabled => _aiIntegrationOptions.Enabled;
 
     public string AiAdvisorBaseUrl => _aiIntegrationOptions.Project5BaseUrl;
@@ -92,6 +98,9 @@ public class DashboardModel : PageModel
         JavaBackendBaseUrl = _javaBackendApiOptions.BaseUrl;
         JavaBackendTimeoutSeconds = _javaBackendApiOptions.TimeoutSeconds;
         CheckedAtUtc = DateTime.UtcNow;
+
+        AiIntegrationStatus = await _aiDecisionSupportClient
+            .GetStatusAsync(cancellationToken);
 
         JavaBackendReachable = await _javaBackendApiClient
             .IsBackendReachableAsync(cancellationToken);
@@ -238,6 +247,21 @@ public class DashboardModel : PageModel
         }
 
         return "status-warning";
+    }
+
+    public static string GetAiStatusCssClass(AiIntegrationStatusDto? status)
+    {
+        if (status is null)
+        {
+            return "status-warning";
+        }
+
+        if (!status.Enabled)
+        {
+            return "status-neutral";
+        }
+
+        return status.AdvisorReachable ? "status-good" : "status-warning";
     }
 
     public static string FormatDecimal(decimal? value)

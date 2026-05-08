@@ -5,7 +5,6 @@ using MegaFintradeRiskMonitor.Options;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
-
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.Configure<JavaBackendApiOptions>(
@@ -50,6 +49,8 @@ builder.Services.AddScoped<IAlertRuleEngine, AlertRuleEngine>();
 builder.Services.AddScoped<IAlertService, AlertService>();
 
 builder.Services.AddScoped<IRiskMonitoringService, RiskMonitoringService>();
+
+builder.Services.AddScoped<IAiDecisionSupportClient, DisabledAiDecisionSupportClient>();
 
 builder.Services.AddHostedService<RiskMonitoringBackgroundService>();
 
