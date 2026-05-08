@@ -43,20 +43,15 @@ builder.Services.AddHttpClient("JavaBackendApi", (serviceProvider, client) =>
 });
 
 builder.Services.AddScoped<IJavaBackendApiClient, JavaBackendApiClient>();
-
 builder.Services.AddScoped<IAlertRuleEngine, AlertRuleEngine>();
-
 builder.Services.AddScoped<IAlertService, AlertService>();
-
 builder.Services.AddScoped<IRiskMonitoringService, RiskMonitoringService>();
-
 builder.Services.AddScoped<IAiDecisionSupportClient, DisabledAiDecisionSupportClient>();
 
 builder.Services.AddHostedService<RiskMonitoringBackgroundService>();
 
 builder.Services.AddRazorPages();
 builder.Services.AddControllers();
-
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
@@ -72,11 +67,10 @@ if (!Directory.Exists(databaseDirectory))
 using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<RiskMonitorDbContext>();
-
     dbContext.Database.Migrate();
 }
 
-if (app.Environment.IsDevelopment())
+if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Docker"))
 {
     app.UseSwagger();
     app.UseSwaggerUI();
@@ -88,9 +82,7 @@ else
 }
 
 app.UseHttpsRedirection();
-
 app.UseStaticFiles();
-
 app.UseRouting();
 
 app.MapRazorPages();

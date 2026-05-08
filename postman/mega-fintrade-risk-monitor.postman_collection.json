@@ -1,0 +1,443 @@
+{
+  "info": {
+    "_postman_id": "6fd0a4f2-0c2f-4d62-8d9f-mega-fintrade-risk-monitor",
+    "name": "Mega Fintrade Risk Monitor API",
+    "description": "Postman collection for testing Mega Fintrade Risk Monitor .NET APIs. This collection covers health checks, monitor status, manual monitoring run, alert APIs, AI status, Swagger, and dashboard links. The default base URL is http://localhost:5189, which matches Docker Compose runtime and the expected local development port.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5189",
+      "type": "string"
+    },
+    {
+      "key": "alertId",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "symbol",
+      "value": "AAPL",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "GET Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "health"
+              ]
+            },
+            "description": "Checks whether the Mega Fintrade Risk Monitor service is running."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Monitor",
+      "item": [
+        {
+          "name": "GET Monitor Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/monitor/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "monitor",
+                "status"
+              ]
+            },
+            "description": "Returns the latest monitor status, including Java backend reachability and latest monitoring result."
+          },
+          "response": []
+        },
+        {
+          "name": "POST Run Monitor",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/monitor/run",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "monitor",
+                "run"
+              ]
+            },
+            "description": "Manually triggers a monitoring run. This checks the Java backend, evaluates rules, stores monitoring snapshot data, and creates alerts if rule conditions are met."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Alerts",
+      "item": [
+        {
+          "name": "GET All Alerts",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/alerts",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "alerts"
+              ]
+            },
+            "description": "Returns all alert records, including active and resolved alerts."
+          },
+          "response": []
+        },
+        {
+          "name": "GET Active Alerts",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/alerts/active",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "alerts",
+                "active"
+              ]
+            },
+            "description": "Returns unresolved active alerts only."
+          },
+          "response": []
+        },
+        {
+          "name": "GET Alert History",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/alerts/history",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "alerts",
+                "history"
+              ]
+            },
+            "description": "Returns historical or resolved alert records."
+          },
+          "response": []
+        },
+        {
+          "name": "GET Alert By Id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/alerts/{{alertId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "alerts",
+                "{{alertId}}"
+              ]
+            },
+            "description": "Returns one alert by ID. Set the alertId collection variable before running this request."
+          },
+          "response": []
+        },
+        {
+          "name": "POST Resolve Alert",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/alerts/{{alertId}}/resolve",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "alerts",
+                "{{alertId}}",
+                "resolve"
+              ]
+            },
+            "description": "Marks an active alert as resolved. Set the alertId collection variable before running this request."
+          },
+          "response": []
+        },
+        {
+          "name": "GET Alerts By Symbol Optional Future Filter",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/alerts?symbol={{symbol}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "alerts"
+              ],
+              "query": [
+                {
+                  "key": "symbol",
+                  "value": "{{symbol}}",
+                  "description": "Optional future symbol filter. This may depend on whether symbol filtering has been implemented in the controller."
+                }
+              ]
+            },
+            "description": "Optional future symbol-level alert filter. Useful when the Java backend later returns dynamic symbol-level metrics."
+          },
+          "response": []
+        },
+        {
+          "name": "GET Active Alerts By Symbol Optional Future Filter",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/alerts/active?symbol={{symbol}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "alerts",
+                "active"
+              ],
+              "query": [
+                {
+                  "key": "symbol",
+                  "value": "{{symbol}}",
+                  "description": "Optional future symbol filter. This may depend on whether symbol filtering has been implemented in the controller."
+                }
+              ]
+            },
+            "description": "Optional future active-alert symbol filter."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "AI",
+      "item": [
+        {
+          "name": "GET AI Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/ai/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "ai",
+                "status"
+              ]
+            },
+            "description": "Returns AI integration status. AI is disabled by default. The .NET monitor should continue working normally without Project 5."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Browser Links",
+      "item": [
+        {
+          "name": "Open Dashboard",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/dashboard",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "dashboard"
+              ]
+            },
+            "description": "Opens the Razor Pages dashboard. This request is mainly a browser link."
+          },
+          "response": []
+        },
+        {
+          "name": "Open Swagger",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/swagger",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "swagger"
+              ]
+            },
+            "description": "Opens Swagger UI. This request is mainly a browser link."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Common Test Flow",
+      "item": [
+        {
+          "name": "1 - GET Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "health"
+              ]
+            },
+            "description": "Step 1: Confirm the .NET monitor is running."
+          },
+          "response": []
+        },
+        {
+          "name": "2 - GET Monitor Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/monitor/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "monitor",
+                "status"
+              ]
+            },
+            "description": "Step 2: Check current monitor status."
+          },
+          "response": []
+        },
+        {
+          "name": "3 - POST Run Monitor",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/monitor/run",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "monitor",
+                "run"
+              ]
+            },
+            "description": "Step 3: Manually run monitoring. If Java backend is unavailable, the monitor should still avoid crashing."
+          },
+          "response": []
+        },
+        {
+          "name": "4 - GET Active Alerts",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/alerts/active",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "alerts",
+                "active"
+              ]
+            },
+            "description": "Step 4: Check active alerts generated by the monitor."
+          },
+          "response": []
+        },
+        {
+          "name": "5 - GET All Alerts",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/alerts",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "alerts"
+              ]
+            },
+            "description": "Step 5: Check all stored alerts."
+          },
+          "response": []
+        },
+        {
+          "name": "6 - GET AI Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/ai/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "ai",
+                "status"
+              ]
+            },
+            "description": "Step 6: Confirm AI is disabled or unavailable without affecting core monitoring."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

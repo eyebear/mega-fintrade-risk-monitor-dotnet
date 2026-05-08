@@ -1,10 +1,12 @@
 # Mega Fintrade Risk Monitor (.NET)
 
-Mega Fintrade Risk Monitor is a C#/.NET monitoring, alerting, and dashboard service for the Mega Fintrade Platform.
+Mega Fintrade Risk Monitor is the monitoring, alerting, and dashboard service for the Mega Fintrade Platform.
 
-It monitors the Mega Fintrade Backend Java APIs, evaluates deterministic risk and import-health rules, stores alert records, exposes monitoring and alert APIs, and displays platform status through a Razor Pages dashboard.
+It is a C#/.NET service that watches the Java backend, checks whether financial data imports are healthy, evaluates portfolio risk conditions, stores alert records, and presents the current system state through REST APIs and a Razor Pages dashboard.
 
-This service is AI-ready but not AI-dependent. Future AI-generated explanations and risk summaries will be handled by a separate Mega Fintrade AI Advisor service. The .NET monitor must continue working normally when the AI advisor is disabled or unavailable.
+This project represents the operational monitoring layer of the Mega Fintrade system. The upstream Java backend stores imported risk and backtest data, while this .NET service continuously checks that data and turns risk conditions into visible alerts.
+
+The service is also AI-ready, but it does not depend on AI. A future Mega Fintrade AI Advisor service may provide optional natural-language explanations and risk summaries. This .NET monitor must continue working normally when the AI advisor is disabled, unavailable, or not yet implemented.
 
 ---
 
@@ -33,7 +35,7 @@ Main responsibilities:
 
 - Poll Java backend report and import-health APIs
 - Detect unavailable backend services
-- Evaluate deterministic risk rules
+- Evaluate deterministic portfolio risk rules
 - Evaluate import-health rules
 - Detect CSV rejection problems
 - Store alert records
@@ -240,6 +242,32 @@ Docker files:
 | `.env.example` | Documents optional Docker environment overrides |
 
 ---
+
+## Screenshots
+
+Main dashboard:
+
+![Mega Fintrade Risk Monitor Dashboard](docs/screenshots/dashboard.png)
+
+Swagger API documentation:
+
+![Swagger API Documentation](docs/screenshots/swagger.png)
+
+Health endpoint:
+
+![Health Endpoint](docs/screenshots/health.png)
+
+Monitor status API:
+
+![Monitor Status API](docs/screenshots/monitor-status.png)
+
+AI status endpoint:
+
+![AI Status Endpoint](docs/screenshots/ai-status.png)
+
+Active alerts API:
+
+![Active Alerts API](docs/screenshots/active-alerts.png)
 
 ## Docker Backend URL Rules
 
