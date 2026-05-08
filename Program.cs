@@ -44,8 +44,14 @@ builder.Services.AddHttpClient("JavaBackendApi", (serviceProvider, client) =>
 });
 
 builder.Services.AddScoped<IJavaBackendApiClient, JavaBackendApiClient>();
+
 builder.Services.AddScoped<IAlertRuleEngine, AlertRuleEngine>();
+
 builder.Services.AddScoped<IAlertService, AlertService>();
+
+builder.Services.AddScoped<IRiskMonitoringService, RiskMonitoringService>();
+
+builder.Services.AddHostedService<RiskMonitoringBackgroundService>();
 
 builder.Services.AddRazorPages();
 builder.Services.AddControllers();

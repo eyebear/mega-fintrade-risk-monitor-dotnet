@@ -1,9 +1,12 @@
 using MegaFintradeRiskMonitor.Clients;
+using MegaFintradeRiskMonitor.Data;
 using MegaFintradeRiskMonitor.Dtos.Monitor;
 using MegaFintradeRiskMonitor.Dtos.Project1;
+using MegaFintradeRiskMonitor.Models;
 using MegaFintradeRiskMonitor.Options;
 using MegaFintradeRiskMonitor.Services;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
 namespace MegaFintradeRiskMonitor.Controllers;
@@ -18,6 +21,8 @@ public class MonitorController : ControllerBase
     private readonly MonitoringOptions _monitoringOptions;
     private readonly IJavaBackendApiClient _javaBackendApiClient;
     private readonly IAlertRuleEngine _alertRuleEngine;
+    private readonly IRiskMonitoringService _riskMonitoringService;
+    private readonly RiskMonitorDbContext _dbContext;
 
     public MonitorController(
         IOptions<JavaBackendApiOptions> javaBackendApiOptions,
@@ -25,7 +30,9 @@ public class MonitorController : ControllerBase
         IOptions<AlertRuleOptions> alertRuleOptions,
         IOptions<MonitoringOptions> monitoringOptions,
         IJavaBackendApiClient javaBackendApiClient,
-        IAlertRuleEngine alertRuleEngine)
+        IAlertRuleEngine alertRuleEngine,
+        IRiskMonitoringService riskMonitoringService,
+        RiskMonitorDbContext dbContext)
     {
         _javaBackendApiOptions = javaBackendApiOptions.Value;
         _aiIntegrationOptions = aiIntegrationOptions.Value;
@@ -33,12 +40,56 @@ public class MonitorController : ControllerBase
         _monitoringOptions = monitoringOptions.Value;
         _javaBackendApiClient = javaBackendApiClient;
         _alertRuleEngine = alertRuleEngine;
+        _riskMonitoringService = riskMonitoringService;
+        _dbContext = dbContext;
+    }
+
+    [HttpPost("run")]
+    public async Task<IActionResult> RunMonitor(CancellationToken cancellationToken)
+    {
+        var result = await _riskMonitoringService.RunOnceAsync(cancellationToken);
+
+        return Ok(result);
     }
 
     [HttpGet("status")]
     public async Task<IActionResult> GetStatus(CancellationToken cancellationToken)
     {
-        var javaBackendReachable = await _javaBackendApiClient.IsBackendReachableAsync(cancellationToken);
+        var javaBackendReachable = await _javaBackendApiClient
+            .IsBackendReachableAsync(cancellationToken);
+
+        var latestSnapshot = await _dbContext.MonitoringSnapshots
+            .AsNoTracking()
+            .OrderByDescending(snapshot => snapshot.CreatedAtUtc)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        var activeAlertCount = await _dbContext.RiskAlerts
+            .AsNoTracking()
+            .CountAsync(alert => alert.IsActive, cancellationToken);
+
+        var criticalAlertCount = await _dbContext.RiskAlerts
+            .AsNoTracking()
+            .CountAsync(
+                alert => alert.IsActive && alert.Severity == AlertSeverity.Critical,
+                cancellationToken);
+
+        var highAlertCount = await _dbContext.RiskAlerts
+            .AsNoTracking()
+            .CountAsync(
+                alert => alert.IsActive && alert.Severity == AlertSeverity.High,
+                cancellationToken);
+
+        var mediumAlertCount = await _dbContext.RiskAlerts
+            .AsNoTracking()
+            .CountAsync(
+                alert => alert.IsActive && alert.Severity == AlertSeverity.Medium,
+                cancellationToken);
+
+        var lowAlertCount = await _dbContext.RiskAlerts
+            .AsNoTracking()
+            .CountAsync(
+                alert => alert.IsActive && alert.Severity == AlertSeverity.Low,
+                cancellationToken);
 
         return Ok(new
         {
@@ -56,6 +107,36 @@ public class MonitorController : ControllerBase
                     "/api/import/rejections"
                 }
             },
+            latestMonitoringSnapshot = latestSnapshot is null
+                ? null
+                : new
+                {
+                    id = latestSnapshot.Id,
+                    status = latestSnapshot.Status,
+                    message = latestSnapshot.Message,
+                    createdAtUtc = latestSnapshot.CreatedAtUtc,
+                    javaBackendReachable = latestSnapshot.JavaBackendReachable,
+                    javaBackendBaseUrl = latestSnapshot.JavaBackendBaseUrl,
+                    reportSummaryAvailable = latestSnapshot.ReportSummaryAvailable,
+                    importAuditAvailable = latestSnapshot.ImportAuditAvailable,
+                    importRejectionsAvailable = latestSnapshot.ImportRejectionsAvailable,
+                    portfolioMonitoringAvailable = latestSnapshot.PortfolioMonitoringAvailable,
+                    symbolMonitoringAvailable = latestSnapshot.SymbolMonitoringAvailable,
+                    symbolCount = latestSnapshot.SymbolCount,
+                    activeAlertCount = latestSnapshot.ActiveAlertCount,
+                    criticalAlertCount = latestSnapshot.CriticalAlertCount,
+                    highAlertCount = latestSnapshot.HighAlertCount,
+                    mediumAlertCount = latestSnapshot.MediumAlertCount,
+                    lowAlertCount = latestSnapshot.LowAlertCount
+                },
+            currentAlertSummary = new
+            {
+                activeAlertCount,
+                criticalAlertCount,
+                highAlertCount,
+                mediumAlertCount,
+                lowAlertCount
+            },
             alertRules = new
             {
                 maxDrawdownThreshold = _alertRuleOptions.MaxDrawdownThreshold,
@@ -65,7 +146,9 @@ public class MonitorController : ControllerBase
             },
             monitoring = new
             {
-                pollingIntervalSeconds = _monitoringOptions.PollingIntervalSeconds
+                pollingIntervalSeconds = _monitoringOptions.PollingIntervalSeconds,
+                manualRunEndpoint = "POST /api/monitor/run",
+                statusEndpoint = "GET /api/monitor/status"
             },
             aiIntegration = new
             {
@@ -190,35 +273,35 @@ public class MonitorController : ControllerBase
             timestampUtc = DateTime.UtcNow
         });
     }
+
     [HttpGet("rule-evaluation")]
-public async Task<IActionResult> EvaluateRules(CancellationToken cancellationToken)
-{
-    var javaBackendReachable = await _javaBackendApiClient.IsBackendReachableAsync(cancellationToken);
-
-    var reportSummary = javaBackendReachable
-        ? await _javaBackendApiClient.GetReportSummaryAsync(cancellationToken)
-        : null;
-
-    var importAudits = javaBackendReachable
-        ? await _javaBackendApiClient.GetImportAuditAsync(cancellationToken)
-        : Array.Empty<JavaBackendImportAuditDto>();
-
-    var importRejections = javaBackendReachable
-        ? await _javaBackendApiClient.GetImportRejectionsAsync(cancellationToken)
-        : Array.Empty<JavaBackendImportRejectionDto>();
-
-    var request = new AlertRuleEvaluationRequest
+    public async Task<IActionResult> EvaluateRules(CancellationToken cancellationToken)
     {
-        JavaBackendReachable = javaBackendReachable,
-        ReportSummary = reportSummary,
-        ImportAudits = importAudits,
-        ImportRejections = importRejections,
-        EvaluationTimeUtc = DateTime.UtcNow
-    };
+        var javaBackendReachable = await _javaBackendApiClient.IsBackendReachableAsync(cancellationToken);
 
-    var evaluationResult = _alertRuleEngine.Evaluate(request);
+        var reportSummary = javaBackendReachable
+            ? await _javaBackendApiClient.GetReportSummaryAsync(cancellationToken)
+            : null;
 
-    return Ok(evaluationResult);
-}
+        var importAudits = javaBackendReachable
+            ? await _javaBackendApiClient.GetImportAuditAsync(cancellationToken)
+            : Array.Empty<JavaBackendImportAuditDto>();
 
+        var importRejections = javaBackendReachable
+            ? await _javaBackendApiClient.GetImportRejectionsAsync(cancellationToken)
+            : Array.Empty<JavaBackendImportRejectionDto>();
+
+        var request = new AlertRuleEvaluationRequest
+        {
+            JavaBackendReachable = javaBackendReachable,
+            ReportSummary = reportSummary,
+            ImportAudits = importAudits,
+            ImportRejections = importRejections,
+            EvaluationTimeUtc = DateTime.UtcNow
+        };
+
+        var evaluationResult = _alertRuleEngine.Evaluate(request);
+
+        return Ok(evaluationResult);
+    }
 }
