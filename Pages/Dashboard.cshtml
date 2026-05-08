@@ -1,0 +1,470 @@
+@page "/dashboard"
+@model MegaFintradeRiskMonitor.Pages.DashboardModel
+
+@{
+    ViewData["Title"] = "Mega Fintrade Risk Monitor Dashboard";
+
+    var javaBackendStatusClass = Model.JavaBackendReachable
+        ? "status-good"
+        : "status-bad";
+
+    var javaBackendStatusText = Model.JavaBackendReachable
+        ? "Reachable"
+        : "Unavailable";
+}
+
+<div class="dashboard-page">
+    <section class="dashboard-header">
+        <div>
+            <h1>Mega Fintrade Risk Monitor</h1>
+            <p>
+                Real-time monitoring dashboard for Java backend health, portfolio risk,
+                import quality, alert status, and future AI decision support.
+            </p>
+        </div>
+
+        <form method="post" asp-page-handler="RunMonitor">
+            @if (!string.IsNullOrWhiteSpace(Model.SymbolFilter))
+            {
+                <input type="hidden" name="SymbolFilter" value="@Model.SymbolFilter" />
+            }
+
+            <button type="submit" class="primary-button">
+                Run Monitor
+            </button>
+        </form>
+    </section>
+
+    @if (Model.ManualRunResult is not null)
+    {
+        <section class="dashboard-card dashboard-wide-card">
+            <h2>Manual Monitor Run Result</h2>
+            <div class="status-details">
+                <div>
+                    <strong>Status:</strong>
+                    <span>@Model.ManualRunResult.Status</span>
+                </div>
+                <div>
+                    <strong>Message:</strong>
+                    <span>@Model.ManualRunResult.Message</span>
+                </div>
+                <div>
+                    <strong>Snapshot ID:</strong>
+                    <span>@Model.ManualRunResult.MonitoringSnapshotId</span>
+                </div>
+                <div>
+                    <strong>Saved Alerts:</strong>
+                    <span>@Model.ManualRunResult.SavedAlertCount</span>
+                </div>
+            </div>
+        </section>
+    }
+
+    <section class="dashboard-grid">
+        <div class="dashboard-card">
+            <h2>System Status</h2>
+
+            <div class="status-row">
+                <span class="status-label">Java Backend</span>
+                <span class="status-badge @javaBackendStatusClass">
+                    @javaBackendStatusText
+                </span>
+            </div>
+
+            <div class="status-details">
+                <div>
+                    <strong>Base URL:</strong>
+                    <span>@Model.JavaBackendBaseUrl</span>
+                </div>
+                <div>
+                    <strong>Timeout:</strong>
+                    <span>@Model.JavaBackendTimeoutSeconds seconds</span>
+                </div>
+                <div>
+                    <strong>Checked At UTC:</strong>
+                    <span>@Model.CheckedAtUtc.ToString("yyyy-MM-dd HH:mm:ss")</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="dashboard-card">
+            <h2>Active Alerts</h2>
+
+            <div class="status-row">
+                <span class="status-label">Unresolved Alerts</span>
+                <span class="status-badge @(Model.ActiveAlertCount == 0 ? "status-good" : "status-warning")">
+                    @Model.ActiveAlertCount
+                </span>
+            </div>
+
+            @if (Model.ActiveAlerts.Count == 0)
+            {
+                <div class="status-placeholder">
+                    No active alerts.
+                </div>
+            }
+            else
+            {
+                <div class="alert-list">
+                    @foreach (var alert in Model.ActiveAlerts.Take(5))
+                    {
+                        var severityClass = DashboardModel.GetSeverityCssClass(alert.Severity);
+
+                        <div class="alert-item">
+                            <div class="alert-item-header">
+                                <span class="severity-badge @severityClass">
+                                    @alert.Severity
+                                </span>
+                                <span class="alert-type">
+                                    @alert.Type
+                                </span>
+                            </div>
+
+                            <div class="alert-message">
+                                @alert.Message
+                            </div>
+
+                            <div class="alert-meta">
+                                <span>
+                                    <strong>Scope:</strong>
+                                    @DashboardModel.GetAlertScopeLabel(alert)
+                                </span>
+                                <span>
+                                    <strong>Source:</strong>
+                                    @alert.SourceEndpoint
+                                </span>
+                                <span>
+                                    <strong>Created:</strong>
+                                    @alert.CreatedAtUtc.ToString("yyyy-MM-dd HH:mm:ss") UTC
+                                </span>
+                            </div>
+                        </div>
+                    }
+                </div>
+
+                @if (Model.ActiveAlerts.Count > 5)
+                {
+                    <div class="dashboard-note">
+                        Showing 5 of @Model.ActiveAlerts.Count active alerts.
+                    </div>
+                }
+            }
+        </div>
+
+        <div class="dashboard-card">
+            <h2>Portfolio Risk Summary</h2>
+
+            @if (!Model.JavaBackendReachable)
+            {
+                <div class="status-placeholder">
+                    Portfolio metrics are unavailable because the Java backend is not reachable.
+                </div>
+            }
+            else if (!Model.PortfolioReportAvailable)
+            {
+                <div class="status-placeholder">
+                    Portfolio report summary is unavailable from the Java backend.
+                </div>
+            }
+            else
+            {
+                <div class="metric-grid">
+                    <div class="metric-item">
+                        <span class="metric-label">Sharpe Ratio</span>
+                        <span class="metric-value">
+                            @DashboardModel.FormatDecimal(Model.PortfolioReportSummary?.PortfolioSharpeRatio)
+                        </span>
+                    </div>
+
+                    <div class="metric-item">
+                        <span class="metric-label">Max Drawdown</span>
+                        <span class="metric-value">
+                            @DashboardModel.FormatDecimal(Model.PortfolioReportSummary?.PortfolioMaxDrawdown)
+                        </span>
+                    </div>
+
+                    <div class="metric-item">
+                        <span class="metric-label">Latest Equity Date</span>
+                        <span class="metric-value">
+                            @DashboardModel.FormatDate(Model.PortfolioReportSummary?.LatestEquityDate)
+                        </span>
+                    </div>
+                </div>
+
+                <div class="row-count-grid">
+                    <div>
+                        <strong>Risk Metrics:</strong>
+                        @DashboardModel.FormatCount(Model.PortfolioReportSummary?.RiskMetricRowCount)
+                    </div>
+                    <div>
+                        <strong>Backtest Results:</strong>
+                        @DashboardModel.FormatCount(Model.PortfolioReportSummary?.BacktestResultRowCount)
+                    </div>
+                    <div>
+                        <strong>Strategy Signals:</strong>
+                        @DashboardModel.FormatCount(Model.PortfolioReportSummary?.StrategySignalRowCount)
+                    </div>
+                    <div>
+                        <strong>Equity Curve:</strong>
+                        @DashboardModel.FormatCount(Model.PortfolioReportSummary?.EquityCurveRowCount)
+                    </div>
+                </div>
+            }
+        </div>
+
+        <div class="dashboard-card">
+            <h2>Import Health</h2>
+
+            @if (!Model.JavaBackendReachable)
+            {
+                <div class="status-placeholder">
+                    Import health is unavailable because the Java backend is not reachable.
+                </div>
+            }
+            else if (Model.LatestImportAudit is null)
+            {
+                <div class="status-placeholder">
+                    No import audit records are available.
+                </div>
+            }
+            else
+            {
+                var importStatusClass = DashboardModel.GetImportStatusCssClass(Model.LatestImportAudit.Status);
+
+                <div class="status-row">
+                    <span class="status-label">Latest Import</span>
+                    <span class="status-badge @importStatusClass">
+                        @(Model.LatestImportAudit.Status ?? "UNKNOWN")
+                    </span>
+                </div>
+
+                <div class="status-details">
+                    <div>
+                        <strong>Import Type:</strong>
+                        <span>@(Model.LatestImportAudit.ImportType ?? "N/A")</span>
+                    </div>
+                    <div>
+                        <strong>Source File:</strong>
+                        <span>@(Model.LatestImportAudit.SourceFile ?? "N/A")</span>
+                    </div>
+                    <div>
+                        <strong>Total Rows:</strong>
+                        <span>@DashboardModel.FormatCount(Model.LatestImportAudit.TotalRows)</span>
+                    </div>
+                    <div>
+                        <strong>Rejected Rows:</strong>
+                        <span>@DashboardModel.FormatCount(Model.LatestImportAudit.RejectedRows)</span>
+                    </div>
+                    <div>
+                        <strong>Completed UTC:</strong>
+                        <span>@DashboardModel.FormatDateTime(Model.LatestImportAudit.CompletedAtUtc)</span>
+                    </div>
+                </div>
+            }
+        </div>
+
+        <div class="dashboard-card">
+            <h2>CSV Rejection Health</h2>
+
+            @if (!Model.JavaBackendReachable)
+            {
+                <div class="status-placeholder">
+                    Rejection health is unavailable because the Java backend is not reachable.
+                </div>
+            }
+            else
+            {
+                <div class="status-row">
+                    <span class="status-label">Rejected Rows</span>
+                    <span class="status-badge @(Model.ImportRejections.Count == 0 ? "status-good" : "status-warning")">
+                        @Model.ImportRejections.Count
+                    </span>
+                </div>
+
+                @if (Model.LatestImportRejection is null)
+                {
+                    <div class="status-placeholder">
+                        No rejected CSV rows are currently reported.
+                    </div>
+                }
+                else
+                {
+                    <div class="status-details">
+                        <div>
+                            <strong>Import Type:</strong>
+                            <span>@(Model.LatestImportRejection.ImportType ?? "N/A")</span>
+                        </div>
+                        <div>
+                            <strong>Source File:</strong>
+                            <span>@(Model.LatestImportRejection.SourceFile ?? "N/A")</span>
+                        </div>
+                        <div>
+                            <strong>Row Number:</strong>
+                            <span>@DashboardModel.FormatCount(Model.LatestImportRejection.RowNumber)</span>
+                        </div>
+                        <div>
+                            <strong>Reason:</strong>
+                            <span>@(Model.LatestImportRejection.Reason ?? "N/A")</span>
+                        </div>
+                    </div>
+                }
+            }
+        </div>
+
+        <div class="dashboard-card">
+            <h2>AI Decision Support</h2>
+
+            <div class="status-row">
+                <span class="status-label">AI Advisor</span>
+                <span class="status-badge @(Model.AiIntegrationEnabled ? "status-warning" : "status-neutral")">
+                    @(Model.AiIntegrationEnabled ? "Configured" : "Disabled")
+                </span>
+            </div>
+
+            <div class="status-details">
+                <div>
+                    <strong>Mode:</strong>
+                    <span>
+                        @(Model.AiIntegrationEnabled ? "Optional external advisor service" : "Reserved for future AI advisor")
+                    </span>
+                </div>
+                <div>
+                    <strong>Advisor URL:</strong>
+                    <span>@Model.AiAdvisorBaseUrl</span>
+                </div>
+                <div>
+                    <strong>Status:</strong>
+                    <span>
+                        AI Decision Support is intentionally separated from core monitoring.
+                    </span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="dashboard-card dashboard-wide-card">
+        <div class="section-header">
+            <div>
+                <h2>Symbol Risk Summary</h2>
+                <p>
+                    Dynamic symbol-level metrics are displayed when the Java backend provides them.
+                    The dashboard does not hard-code ticker cards.
+                </p>
+            </div>
+
+            <form method="get" class="symbol-filter-form">
+                <input
+                    type="text"
+                    name="SymbolFilter"
+                    value="@DashboardModel.NormalizeSymbolForDisplay(Model.SymbolFilter)"
+                    placeholder="Optional symbol filter" />
+
+                <button type="submit" class="secondary-button">
+                    Apply
+                </button>
+
+                <a class="secondary-link" href="/dashboard">
+                    Clear
+                </a>
+            </form>
+        </div>
+
+        @if (!Model.JavaBackendReachable)
+        {
+            <div class="status-placeholder">
+                Symbol-level metrics are unavailable because the Java backend is not reachable.
+            </div>
+        }
+        else if (!Model.PortfolioReportAvailable)
+        {
+            <div class="status-placeholder">
+                Symbol-level metrics are unavailable because the report summary is unavailable.
+            </div>
+        }
+        else if (Model.SymbolMetrics.Count == 0)
+        {
+            <div class="status-placeholder">
+                Symbol-level metrics are not available from the Java backend yet.
+                Portfolio-level monitoring is active.
+            </div>
+        }
+        else
+        {
+            <div class="table-wrapper">
+                <table class="dashboard-table">
+                    <thead>
+                        <tr>
+                            <th>Symbol</th>
+                            <th>Sharpe Ratio</th>
+                            <th>Max Drawdown</th>
+                            <th>Latest Data Date</th>
+                            <th>Alert Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var symbolMetric in Model.SymbolMetrics)
+                        {
+                            var alertStatus = Model.GetSymbolAlertStatus(symbolMetric.Symbol);
+
+                            <tr>
+                                <td>@symbolMetric.Symbol</td>
+                                <td>@DashboardModel.FormatDecimal(symbolMetric.SharpeRatio)</td>
+                                <td>@DashboardModel.FormatDecimal(symbolMetric.MaxDrawdown)</td>
+                                <td>@DashboardModel.FormatDate(symbolMetric.LatestDataDate)</td>
+                                <td>@alertStatus</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </section>
+
+    <section class="dashboard-card dashboard-wide-card">
+        <h2>Alert History</h2>
+
+        @if (Model.AlertHistory.Count == 0)
+        {
+            <div class="status-placeholder">
+                No resolved or historical alerts are available.
+            </div>
+        }
+        else
+        {
+            <div class="table-wrapper">
+                <table class="dashboard-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Severity</th>
+                            <th>Type</th>
+                            <th>Scope</th>
+                            <th>Created UTC</th>
+                            <th>Resolved UTC</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var alert in Model.AlertHistory.Take(10))
+                        {
+                            <tr>
+                                <td>@alert.Id</td>
+                                <td>@alert.Severity</td>
+                                <td>@alert.Type</td>
+                                <td>@DashboardModel.GetAlertScopeLabel(alert)</td>
+                                <td>@alert.CreatedAtUtc.ToString("yyyy-MM-dd HH:mm:ss")</td>
+                                <td>@DashboardModel.FormatDateTime(alert.ResolvedAtUtc)</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            @if (Model.AlertHistory.Count > 10)
+            {
+                <div class="dashboard-note">
+                    Showing 10 of @Model.AlertHistory.Count historical alerts.
+                </div>
+            }
+        }
+    </section>
+</div>
