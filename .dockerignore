@@ -1,0 +1,90 @@
+# Phase 10.2 — Docker Ignore
+# Mega Fintrade Risk Monitor .NET
+#
+# This file keeps the Docker build context clean.
+# It prevents local build outputs, IDE files, Git files, logs,
+# local databases, and temporary files from being copied into the image.
+
+# Git
+.git
+.gitignore
+
+# GitHub workflow metadata is not required inside the runtime image
+.github
+
+# Visual Studio / VS Code / Rider
+.vs
+.vscode
+.idea
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# .NET build outputs
+bin
+obj
+**/bin
+**/obj
+
+# Test results and coverage
+TestResults
+**/TestResults
+coverage
+**/coverage
+*.coverage
+*.coveragexml
+coverage.cobertura.xml
+
+# NuGet local artifacts
+*.nupkg
+*.snupkg
+packages
+
+# Logs
+logs
+Logs
+*.log
+
+# Local SQLite database files
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+
+# Local environment files
+.env
+.env.*
+!.env.example
+
+# Docker files that do not need to be copied into the published app
+docker-compose.yml
+docker-compose.override.yml
+
+# OS generated files
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Temporary files
+tmp
+temp
+*.tmp
+*.temp
+*.bak
+*.swp
+
+# Markdown/docs are not required for the runtime image
+docs
+*.md
+
+# Node/frontend artifacts if accidentally added later
+node_modules
+npm-debug.log
+yarn-debug.log
+yarn-error.log
+pnpm-debug.log

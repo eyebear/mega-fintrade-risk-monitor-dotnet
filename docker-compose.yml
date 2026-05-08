@@ -1,0 +1,51 @@
+# Phase 10.4 / 10.5 / 10.6 — Docker Compose
+# Mega Fintrade Risk Monitor .NET
+#
+# This Compose file runs the .NET risk monitor container locally.
+#
+# Local expected URLs:
+# - Risk Monitor dashboard/API: http://localhost:5189
+# - Java backend on host Mac:  http://localhost:8080
+# - Java backend from inside container: http://host.docker.internal:8080
+# - Future AI advisor on host Mac: http://localhost:7005
+#
+# SQLite persistence:
+# - The app stores SQLite data inside the container at /app/data/risk-monitor.db
+# - The named Docker volume risk-monitor-sqlite-data keeps that data after container removal
+#
+# Project 5 AI advisor is intentionally disabled by default.
+# This keeps Project 4 independent from the future AI service.
+
+services:
+  mega-fintrade-risk-monitor:
+    container_name: mega-fintrade-risk-monitor
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: mega-fintrade-risk-monitor-dotnet:latest
+
+    ports:
+      - "${RISK_MONITOR_HOST_PORT:-5189}:${RISK_MONITOR_CONTAINER_PORT:-8080}"
+
+    environment:
+      ASPNETCORE_ENVIRONMENT: Docker
+      ASPNETCORE_URLS: "http://+:${RISK_MONITOR_CONTAINER_PORT:-8080}"
+
+      ConnectionStrings__RiskMonitorDatabase: "${RISK_MONITOR_DATABASE:-Data Source=/app/data/risk-monitor.db}"
+
+      JavaBackendApi__BaseUrl: "${JAVA_BACKEND_BASE_URL:-http://host.docker.internal:8080}"
+      JavaBackendApi__TimeoutSeconds: "${JAVA_BACKEND_TIMEOUT_SECONDS:-10}"
+
+      AiIntegration__Enabled: "${AI_INTEGRATION_ENABLED:-false}"
+      AiIntegration__Project5BaseUrl: "${AI_ADVISOR_BASE_URL:-http://host.docker.internal:7005}"
+
+      Monitoring__PollingIntervalSeconds: "${MONITORING_POLLING_INTERVAL_SECONDS:-60}"
+
+    volumes:
+      - risk-monitor-sqlite-data:/app/data
+
+    restart: unless-stopped
+
+volumes:
+  risk-monitor-sqlite-data:
+    name: mega-fintrade-risk-monitor-sqlite-data
