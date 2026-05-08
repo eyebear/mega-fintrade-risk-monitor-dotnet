@@ -1,8 +1,10 @@
+using MegaFintradeRiskMonitor.Services;
 using MegaFintradeRiskMonitor.Clients;
 using MegaFintradeRiskMonitor.Data;
 using MegaFintradeRiskMonitor.Options;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -42,6 +44,8 @@ builder.Services.AddHttpClient("JavaBackendApi", (serviceProvider, client) =>
 });
 
 builder.Services.AddScoped<IJavaBackendApiClient, JavaBackendApiClient>();
+builder.Services.AddScoped<IAlertRuleEngine, AlertRuleEngine>();
+builder.Services.AddScoped<IAlertService, AlertService>();
 
 builder.Services.AddRazorPages();
 builder.Services.AddControllers();

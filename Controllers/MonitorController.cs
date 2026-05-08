@@ -1,6 +1,8 @@
 using MegaFintradeRiskMonitor.Clients;
 using MegaFintradeRiskMonitor.Dtos.Monitor;
+using MegaFintradeRiskMonitor.Dtos.Project1;
 using MegaFintradeRiskMonitor.Options;
+using MegaFintradeRiskMonitor.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 
@@ -15,19 +17,22 @@ public class MonitorController : ControllerBase
     private readonly AlertRuleOptions _alertRuleOptions;
     private readonly MonitoringOptions _monitoringOptions;
     private readonly IJavaBackendApiClient _javaBackendApiClient;
+    private readonly IAlertRuleEngine _alertRuleEngine;
 
     public MonitorController(
         IOptions<JavaBackendApiOptions> javaBackendApiOptions,
         IOptions<AiIntegrationOptions> aiIntegrationOptions,
         IOptions<AlertRuleOptions> alertRuleOptions,
         IOptions<MonitoringOptions> monitoringOptions,
-        IJavaBackendApiClient javaBackendApiClient)
+        IJavaBackendApiClient javaBackendApiClient,
+        IAlertRuleEngine alertRuleEngine)
     {
         _javaBackendApiOptions = javaBackendApiOptions.Value;
         _aiIntegrationOptions = aiIntegrationOptions.Value;
         _alertRuleOptions = alertRuleOptions.Value;
         _monitoringOptions = monitoringOptions.Value;
         _javaBackendApiClient = javaBackendApiClient;
+        _alertRuleEngine = alertRuleEngine;
     }
 
     [HttpGet("status")]
@@ -185,4 +190,35 @@ public class MonitorController : ControllerBase
             timestampUtc = DateTime.UtcNow
         });
     }
+    [HttpGet("rule-evaluation")]
+public async Task<IActionResult> EvaluateRules(CancellationToken cancellationToken)
+{
+    var javaBackendReachable = await _javaBackendApiClient.IsBackendReachableAsync(cancellationToken);
+
+    var reportSummary = javaBackendReachable
+        ? await _javaBackendApiClient.GetReportSummaryAsync(cancellationToken)
+        : null;
+
+    var importAudits = javaBackendReachable
+        ? await _javaBackendApiClient.GetImportAuditAsync(cancellationToken)
+        : Array.Empty<JavaBackendImportAuditDto>();
+
+    var importRejections = javaBackendReachable
+        ? await _javaBackendApiClient.GetImportRejectionsAsync(cancellationToken)
+        : Array.Empty<JavaBackendImportRejectionDto>();
+
+    var request = new AlertRuleEvaluationRequest
+    {
+        JavaBackendReachable = javaBackendReachable,
+        ReportSummary = reportSummary,
+        ImportAudits = importAudits,
+        ImportRejections = importRejections,
+        EvaluationTimeUtc = DateTime.UtcNow
+    };
+
+    var evaluationResult = _alertRuleEngine.Evaluate(request);
+
+    return Ok(evaluationResult);
+}
+
 }
