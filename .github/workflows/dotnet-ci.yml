@@ -7,11 +7,16 @@ on:
   pull_request:
     branches:
       - main
+  workflow_dispatch:
 
 jobs:
-  build:
-    name: Restore and build
+  build-and-test:
+    name: Restore, build, and test
     runs-on: ubuntu-latest
+
+    env:
+      DOTNET_NOLOGO: true
+      DOTNET_CLI_TELEMETRY_OPTOUT: true
 
     steps:
       - name: Checkout repository
@@ -25,8 +30,22 @@ jobs:
       - name: Display .NET version
         run: dotnet --version
 
+      - name: Display .NET info
+        run: dotnet --info
+
       - name: Restore dependencies
         run: dotnet restore mega-fintrade-risk-monitor-dotnet.sln
 
       - name: Build solution
         run: dotnet build mega-fintrade-risk-monitor-dotnet.sln --configuration Release --no-restore
+
+      - name: Test solution
+        run: dotnet test mega-fintrade-risk-monitor-dotnet.sln --configuration Release --no-build --logger "trx;LogFileName=test-results.trx"
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dotnet-test-results
+          path: "**/TestResults/*.trx"
+          if-no-files-found: ignore
