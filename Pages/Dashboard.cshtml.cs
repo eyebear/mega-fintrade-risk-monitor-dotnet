@@ -69,7 +69,48 @@ public class DashboardModel : PageModel
     public IReadOnlyList<JavaBackendImportRejectionDto> ImportRejections { get; private set; } =
         Array.Empty<JavaBackendImportRejectionDto>();
 
+    public IReadOnlyList<JavaBackendImportRejectionDto> CurrentImportRejections { get; private set; } =
+        Array.Empty<JavaBackendImportRejectionDto>();
+
     public JavaBackendImportRejectionDto? LatestImportRejection { get; private set; }
+
+    public int CurrentRejectedRowCount => CurrentImportRejections.Count;
+
+    public bool LatestImportSucceeded =>
+        LatestImportAudit is not null &&
+        string.Equals(LatestImportAudit.Status, "SUCCESS", StringComparison.OrdinalIgnoreCase);
+
+    public bool LatestImportFailed =>
+        LatestImportAudit is not null &&
+        string.Equals(LatestImportAudit.Status, "FAILED", StringComparison.OrdinalIgnoreCase);
+
+    public string CurrentCsvRejectionHealthMessage
+    {
+        get
+        {
+            if (LatestImportAudit is null)
+            {
+                return "No import audit record is available yet.";
+            }
+
+            if (LatestImportSucceeded)
+            {
+                return "No current CSV rejection issue. Historical rejection rows are not counted against the latest successful import.";
+            }
+
+            if (LatestImportFailed && CurrentRejectedRowCount == 0)
+            {
+                return "Latest import failed, but no rejection row details were returned by the Java backend.";
+            }
+
+            if (CurrentRejectedRowCount == 0)
+            {
+                return "No current CSV rejection issue.";
+            }
+
+            return "Current CSV rejection issue detected for the latest failed import.";
+        }
+    }
 
     public RiskMonitoringRunResult? ManualRunResult { get; private set; }
 
@@ -117,6 +158,7 @@ public class DashboardModel : PageModel
             SymbolMetrics = Array.Empty<JavaBackendSymbolRiskMetricDto>();
             ImportAudits = Array.Empty<JavaBackendImportAuditDto>();
             ImportRejections = Array.Empty<JavaBackendImportRejectionDto>();
+            CurrentImportRejections = Array.Empty<JavaBackendImportRejectionDto>();
             LatestImportAudit = null;
             LatestImportRejection = null;
             return;
@@ -140,10 +182,50 @@ public class DashboardModel : PageModel
         ImportRejections = await _javaBackendApiClient
             .GetImportRejectionsAsync(cancellationToken);
 
-        LatestImportRejection = ImportRejections
+        CurrentImportRejections = GetCurrentImportRejections(
+            LatestImportAudit,
+            ImportRejections);
+
+        LatestImportRejection = CurrentImportRejections
             .OrderByDescending(rejection => rejection.CreatedAtUtc ?? DateTime.MinValue)
             .ThenByDescending(rejection => rejection.Id ?? 0)
             .FirstOrDefault();
+    }
+
+    private static IReadOnlyList<JavaBackendImportRejectionDto> GetCurrentImportRejections(
+        JavaBackendImportAuditDto? latestAudit,
+        IReadOnlyList<JavaBackendImportRejectionDto> importRejections)
+    {
+        if (latestAudit is null)
+        {
+            return Array.Empty<JavaBackendImportRejectionDto>();
+        }
+
+        if (string.Equals(latestAudit.Status, "SUCCESS", StringComparison.OrdinalIgnoreCase))
+        {
+            return Array.Empty<JavaBackendImportRejectionDto>();
+        }
+
+        if (!string.Equals(latestAudit.Status, "FAILED", StringComparison.OrdinalIgnoreCase))
+        {
+            return Array.Empty<JavaBackendImportRejectionDto>();
+        }
+
+        if (!latestAudit.StartedAtUtc.HasValue)
+        {
+            return importRejections
+                .OrderByDescending(rejection => rejection.CreatedAtUtc ?? DateTime.MinValue)
+                .ThenByDescending(rejection => rejection.Id ?? 0)
+                .ToList();
+        }
+
+        return importRejections
+            .Where(rejection =>
+                rejection.CreatedAtUtc.HasValue &&
+                rejection.CreatedAtUtc.Value >= latestAudit.StartedAtUtc.Value)
+            .OrderByDescending(rejection => rejection.CreatedAtUtc ?? DateTime.MinValue)
+            .ThenByDescending(rejection => rejection.Id ?? 0)
+            .ToList();
     }
 
     private static IReadOnlyList<JavaBackendSymbolRiskMetricDto> GetFilteredSymbolMetrics(
@@ -249,6 +331,13 @@ public class DashboardModel : PageModel
         return "status-warning";
     }
 
+    public static string GetCsvRejectionStatusCssClass(int currentRejectedRowCount)
+    {
+        return currentRejectedRowCount > 0
+            ? "status-warning"
+            : "status-good";
+    }
+
     public static string GetAiStatusCssClass(AiIntegrationStatusDto? status)
     {
         if (status is null)
@@ -302,6 +391,26 @@ public class DashboardModel : PageModel
         }
 
         return value.Value.ToString();
+    }
+
+    public static string FormatNullableText(string? value, string fallback = "N/A")
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return fallback;
+        }
+
+        return value.Trim();
+    }
+
+    public static string FormatImportType(string? importType)
+    {
+        return FormatNullableText(importType, "Aggregate import");
+    }
+
+    public static string FormatSourceFile(string? sourceFile)
+    {
+        return FormatNullableText(sourceFile, "Multiple pipeline files");
     }
 
     public static string NormalizeSymbolForDisplay(string? symbol)

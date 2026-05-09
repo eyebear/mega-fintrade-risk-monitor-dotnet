@@ -231,6 +231,24 @@
             {
                 var importStatusClass = DashboardModel.GetImportStatusCssClass(Model.LatestImportAudit.Status);
 
+                var fallbackTotalRows =
+                    (Model.PortfolioReportSummary?.RiskMetricRowCount ?? 0) +
+                    (Model.PortfolioReportSummary?.BacktestResultRowCount ?? 0) +
+                    (Model.PortfolioReportSummary?.StrategySignalRowCount ?? 0) +
+                    (Model.PortfolioReportSummary?.EquityCurveRowCount ?? 0);
+
+                var totalRowsText = Model.LatestImportAudit.TotalRows.HasValue
+                    ? DashboardModel.FormatCount(Model.LatestImportAudit.TotalRows)
+                    : fallbackTotalRows.ToString();
+
+                var rejectedRowsText = Model.LatestImportAudit.RejectedRows.HasValue
+                    ? DashboardModel.FormatCount(Model.LatestImportAudit.RejectedRows)
+                    : Model.CurrentRejectedRowCount.ToString();
+
+                var completedAtUtc = Model.LatestImportAudit.CompletedAtUtc
+                    ?? Model.LatestImportAudit.StartedAtUtc
+                    ?? Model.CheckedAtUtc;
+
                 <div class="status-row">
                     <span class="status-label">Latest Import</span>
                     <span class="status-badge @importStatusClass">
@@ -241,25 +259,32 @@
                 <div class="status-details">
                     <div>
                         <strong>Import Type:</strong>
-                        <span>@(Model.LatestImportAudit.ImportType ?? "N/A")</span>
+                        <span>@DashboardModel.FormatImportType(Model.LatestImportAudit.ImportType)</span>
                     </div>
                     <div>
                         <strong>Source File:</strong>
-                        <span>@(Model.LatestImportAudit.SourceFile ?? "N/A")</span>
+                        <span>@DashboardModel.FormatSourceFile(Model.LatestImportAudit.SourceFile)</span>
                     </div>
                     <div>
                         <strong>Total Rows:</strong>
-                        <span>@DashboardModel.FormatCount(Model.LatestImportAudit.TotalRows)</span>
+                        <span>@totalRowsText</span>
                     </div>
                     <div>
                         <strong>Rejected Rows:</strong>
-                        <span>@DashboardModel.FormatCount(Model.LatestImportAudit.RejectedRows)</span>
+                        <span>@rejectedRowsText</span>
                     </div>
                     <div>
                         <strong>Completed UTC:</strong>
-                        <span>@DashboardModel.FormatDateTime(Model.LatestImportAudit.CompletedAtUtc)</span>
+                        <span>@DashboardModel.FormatDateTime(completedAtUtc)</span>
                     </div>
                 </div>
+
+                @if (Model.LatestImportSucceeded)
+                {
+                    <div class="dashboard-note">
+                        Latest import succeeded. Aggregate imports use report summary row counts when individual file-level audit details are not provided.
+                    </div>
+                }
             }
         </div>
 
@@ -274,29 +299,38 @@
             }
             else
             {
+                var csvStatusClass = DashboardModel.GetCsvRejectionStatusCssClass(Model.CurrentRejectedRowCount);
+
                 <div class="status-row">
-                    <span class="status-label">Rejected Rows</span>
-                    <span class="status-badge @(Model.ImportRejections.Count == 0 ? "status-good" : "status-warning")">
-                        @Model.ImportRejections.Count
+                    <span class="status-label">Current Rejected Rows</span>
+                    <span class="status-badge @csvStatusClass">
+                        @Model.CurrentRejectedRowCount
                     </span>
                 </div>
 
-                @if (Model.LatestImportRejection is null)
-                {
-                    <div class="status-placeholder">
-                        No rejected CSV rows are currently reported.
+                <div class="status-details">
+                    <div>
+                        <strong>Status:</strong>
+                        <span>@Model.CurrentCsvRejectionHealthMessage</span>
                     </div>
-                }
-                else
-                {
-                    <div class="status-details">
+
+                    @if (Model.LatestImportAudit is not null)
+                    {
+                        <div>
+                            <strong>Latest Import:</strong>
+                            <span>@(Model.LatestImportAudit.Status ?? "UNKNOWN")</span>
+                        </div>
+                    }
+
+                    @if (Model.LatestImportRejection is not null)
+                    {
                         <div>
                             <strong>Import Type:</strong>
-                            <span>@(Model.LatestImportRejection.ImportType ?? "N/A")</span>
+                            <span>@DashboardModel.FormatNullableText(Model.LatestImportRejection.ImportType)</span>
                         </div>
                         <div>
                             <strong>Source File:</strong>
-                            <span>@(Model.LatestImportRejection.SourceFile ?? "N/A")</span>
+                            <span>@DashboardModel.FormatNullableText(Model.LatestImportRejection.SourceFile)</span>
                         </div>
                         <div>
                             <strong>Row Number:</strong>
@@ -304,8 +338,15 @@
                         </div>
                         <div>
                             <strong>Reason:</strong>
-                            <span>@(Model.LatestImportRejection.Reason ?? "N/A")</span>
+                            <span>@DashboardModel.FormatNullableText(Model.LatestImportRejection.Reason)</span>
                         </div>
+                    }
+                </div>
+
+                @if (Model.ImportRejections.Count > 0 && Model.CurrentRejectedRowCount == 0)
+                {
+                    <div class="dashboard-note">
+                        Historical rejection records exist, but they do not belong to the latest current import health state.
                     </div>
                 }
             }
