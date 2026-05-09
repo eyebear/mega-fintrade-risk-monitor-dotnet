@@ -18,8 +18,9 @@ public class AlertRuleEngine : IAlertRuleEngine
     {
         var alerts = new List<RiskAlertCandidate>();
 
-        var portfolioRulesEvaluated = request.JavaBackendReachable &&
-                                      request.ReportSummary is not null;
+        var portfolioRulesEvaluated =
+            request.JavaBackendReachable &&
+            request.ReportSummary is not null;
 
         var symbolMetrics = GetValidSymbolMetrics(request.ReportSummary);
         var symbolRulesEvaluated = symbolMetrics.Count > 0;
@@ -78,15 +79,7 @@ public class AlertRuleEngine : IAlertRuleEngine
             return;
         }
 
-        if (request.ImportAudits.Count == 0)
-        {
-            return;
-        }
-
-        var latestAudit = request.ImportAudits
-            .OrderByDescending(audit => audit.CompletedAtUtc ?? audit.StartedAtUtc ?? DateTime.MinValue)
-            .ThenByDescending(audit => audit.Id ?? 0)
-            .FirstOrDefault();
+        var latestAudit = GetLatestImportAudit(request.ImportAudits);
 
         if (latestAudit is null)
         {
@@ -127,7 +120,19 @@ public class AlertRuleEngine : IAlertRuleEngine
             return;
         }
 
-        var rejectionCount = request.ImportRejections.Count;
+        var latestAudit = GetLatestImportAudit(request.ImportAudits);
+
+        if (latestAudit is not null &&
+            string.Equals(latestAudit.Status, "SUCCESS", StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        var relevantRejections = GetRelevantRejectionsForLatestImport(
+            latestAudit,
+            request.ImportRejections);
+
+        var rejectionCount = relevantRejections.Count;
         var threshold = _alertRuleOptions.CsvRejectionThreshold;
 
         if (rejectionCount <= threshold)
@@ -135,7 +140,7 @@ public class AlertRuleEngine : IAlertRuleEngine
             return;
         }
 
-        var latestRejection = request.ImportRejections
+        var latestRejection = relevantRejections
             .OrderByDescending(rejection => rejection.CreatedAtUtc ?? DateTime.MinValue)
             .ThenByDescending(rejection => rejection.Id ?? 0)
             .FirstOrDefault();
@@ -152,7 +157,7 @@ public class AlertRuleEngine : IAlertRuleEngine
             Symbol = null,
             Type = AlertType.CsvRejectionsFound,
             Severity = AlertSeverity.Medium,
-            Message = $"Java backend reported {rejectionCount} rejected CSV row(s). Latest reason: {latestReason}",
+            Message = $"Java backend reported {rejectionCount} rejected CSV row(s) for the latest failed import. Latest reason: {latestReason}",
             SourceEndpoint = "/api/import/rejections",
             SourceValue = rejectionCount.ToString(),
             ThresholdValue = threshold.ToString()
@@ -235,12 +240,7 @@ public class AlertRuleEngine : IAlertRuleEngine
 
         var reportSummary = request.ReportSummary;
 
-        if (reportSummary is null)
-        {
-            return;
-        }
-
-        if (!reportSummary.PortfolioMaxDrawdown.HasValue)
+        if (reportSummary is null || !reportSummary.PortfolioMaxDrawdown.HasValue)
         {
             return;
         }
@@ -276,12 +276,7 @@ public class AlertRuleEngine : IAlertRuleEngine
 
         var reportSummary = request.ReportSummary;
 
-        if (reportSummary is null)
-        {
-            return;
-        }
-
-        if (!reportSummary.PortfolioSharpeRatio.HasValue)
+        if (reportSummary is null || !reportSummary.PortfolioSharpeRatio.HasValue)
         {
             return;
         }
@@ -317,12 +312,7 @@ public class AlertRuleEngine : IAlertRuleEngine
 
         var reportSummary = request.ReportSummary;
 
-        if (reportSummary is null)
-        {
-            return;
-        }
-
-        if (!reportSummary.LatestEquityDate.HasValue)
+        if (reportSummary is null || !reportSummary.LatestEquityDate.HasValue)
         {
             return;
         }
@@ -330,7 +320,6 @@ public class AlertRuleEngine : IAlertRuleEngine
         var latestEquityDate = reportSummary.LatestEquityDate.Value;
         var evaluationDate = DateOnly.FromDateTime(request.EvaluationTimeUtc);
         var staleDataDays = _alertRuleOptions.StaleDataDays;
-
         var daysOld = evaluationDate.DayNumber - latestEquityDate.DayNumber;
 
         if (daysOld <= staleDataDays)
@@ -455,7 +444,6 @@ public class AlertRuleEngine : IAlertRuleEngine
         var latestDataDate = symbolMetric.LatestDataDate.Value;
         var evaluationDate = DateOnly.FromDateTime(request.EvaluationTimeUtc);
         var staleDataDays = _alertRuleOptions.StaleDataDays;
-
         var daysOld = evaluationDate.DayNumber - latestDataDate.DayNumber;
 
         if (daysOld <= staleDataDays)
@@ -473,6 +461,43 @@ public class AlertRuleEngine : IAlertRuleEngine
             SourceValue = latestDataDate.ToString("yyyy-MM-dd"),
             ThresholdValue = $"Latest symbol data date must be within {staleDataDays} day(s)"
         });
+    }
+
+    private static JavaBackendImportAuditDto? GetLatestImportAudit(
+        IReadOnlyList<JavaBackendImportAuditDto> importAudits)
+    {
+        if (importAudits.Count == 0)
+        {
+            return null;
+        }
+
+        return importAudits
+            .OrderByDescending(audit => audit.CompletedAtUtc ?? audit.StartedAtUtc ?? DateTime.MinValue)
+            .ThenByDescending(audit => audit.Id ?? 0)
+            .FirstOrDefault();
+    }
+
+    private static IReadOnlyList<JavaBackendImportRejectionDto> GetRelevantRejectionsForLatestImport(
+        JavaBackendImportAuditDto? latestAudit,
+        IReadOnlyList<JavaBackendImportRejectionDto> importRejections)
+    {
+        if (latestAudit is null)
+        {
+            return importRejections;
+        }
+
+        var latestAuditStartedAtUtc = latestAudit.StartedAtUtc;
+
+        if (!latestAuditStartedAtUtc.HasValue)
+        {
+            return importRejections;
+        }
+
+        return importRejections
+            .Where(rejection =>
+                rejection.CreatedAtUtc.HasValue &&
+                rejection.CreatedAtUtc.Value >= latestAuditStartedAtUtc.Value)
+            .ToList();
     }
 
     private static IReadOnlyList<JavaBackendSymbolRiskMetricDto> GetValidSymbolMetrics(

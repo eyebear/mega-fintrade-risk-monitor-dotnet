@@ -86,7 +86,6 @@ public class AlertService : IAlertService
         foreach (var candidate in alertCandidates)
         {
             var alert = candidate.ToRiskAlert();
-
             NormalizeAlert(alert);
 
             var duplicateExists = await ActiveDuplicateExistsAsync(
@@ -119,6 +118,53 @@ public class AlertService : IAlertService
             alertCandidates.Count);
 
         return savedAlerts;
+    }
+
+    public async Task<IReadOnlyList<RiskAlert>> ResolveStaleAlertsAsync(
+        IReadOnlyList<RiskAlertCandidate> currentAlertCandidates,
+        CancellationToken cancellationToken = default)
+    {
+        var activeAlerts = await _dbContext.RiskAlerts
+            .Where(alert => alert.IsActive)
+            .ToListAsync(cancellationToken);
+
+        if (activeAlerts.Count == 0)
+        {
+            return Array.Empty<RiskAlert>();
+        }
+
+        var currentAlertKeys = currentAlertCandidates
+            .Select(CreateCandidateKey)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var resolvedAlerts = new List<RiskAlert>();
+        var resolvedAtUtc = DateTime.UtcNow;
+
+        foreach (var activeAlert in activeAlerts)
+        {
+            var activeAlertKey = CreateAlertKey(activeAlert);
+
+            if (currentAlertKeys.Contains(activeAlertKey))
+            {
+                continue;
+            }
+
+            activeAlert.IsActive = false;
+            activeAlert.ResolvedAtUtc = resolvedAtUtc;
+            resolvedAlerts.Add(activeAlert);
+        }
+
+        if (resolvedAlerts.Count > 0)
+        {
+            await _dbContext.SaveChangesAsync(cancellationToken);
+        }
+
+        _logger.LogInformation(
+            "Resolved {ResolvedAlertCount} stale active alert(s). CurrentCandidateCount={CurrentCandidateCount}.",
+            resolvedAlerts.Count,
+            currentAlertCandidates.Count);
+
+        return resolvedAlerts;
     }
 
     public async Task<RiskAlert?> ResolveAlertAsync(
@@ -197,7 +243,6 @@ public class AlertService : IAlertService
     private static void NormalizeAlert(RiskAlert alert)
     {
         alert.Symbol = NormalizeNullableSymbol(alert.Symbol);
-
         alert.Message = alert.Message.Trim();
         alert.SourceEndpoint = alert.SourceEndpoint.Trim();
 
@@ -217,6 +262,33 @@ public class AlertService : IAlertService
         }
 
         alert.IsActive = true;
+    }
+
+    private static string CreateCandidateKey(RiskAlertCandidate candidate)
+    {
+        return CreateAlertKey(
+            candidate.Type,
+            candidate.Symbol,
+            candidate.SourceEndpoint);
+    }
+
+    private static string CreateAlertKey(RiskAlert alert)
+    {
+        return CreateAlertKey(
+            alert.Type,
+            alert.Symbol,
+            alert.SourceEndpoint);
+    }
+
+    private static string CreateAlertKey(
+        AlertType alertType,
+        string? symbol,
+        string sourceEndpoint)
+    {
+        var normalizedSymbol = NormalizeNullableSymbol(symbol) ?? "PORTFOLIO_OR_SYSTEM";
+        var normalizedSourceEndpoint = sourceEndpoint.Trim().ToUpperInvariant();
+
+        return $"{alertType}|{normalizedSymbol}|{normalizedSourceEndpoint}";
     }
 
     private static string? NormalizeNullableSymbol(string? symbol)

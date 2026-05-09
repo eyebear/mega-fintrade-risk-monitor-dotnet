@@ -46,12 +46,8 @@ public class RiskMonitoringService : IRiskMonitoringService
             .IsBackendReachableAsync(cancellationToken);
 
         JavaBackendReportSummaryDto? reportSummary = null;
-
-        IReadOnlyList<JavaBackendImportAuditDto> importAudits =
-            Array.Empty<JavaBackendImportAuditDto>();
-
-        IReadOnlyList<JavaBackendImportRejectionDto> importRejections =
-            Array.Empty<JavaBackendImportRejectionDto>();
+        IReadOnlyList<JavaBackendImportAuditDto> importAudits = Array.Empty<JavaBackendImportAuditDto>();
+        IReadOnlyList<JavaBackendImportRejectionDto> importRejections = Array.Empty<JavaBackendImportRejectionDto>();
 
         var reportSummaryAvailable = false;
         var importAuditAvailable = false;
@@ -75,7 +71,6 @@ public class RiskMonitoringService : IRiskMonitoringService
             importAuditAvailable = importAudits.Count > 0;
             importRejectionsAvailable = importRejections.Count > 0;
             portfolioMonitoringAvailable = reportSummary is not null;
-
             validSymbols = GetValidSymbols(reportSummary);
             symbolMonitoringAvailable = validSymbols.Count > 0;
 
@@ -113,6 +108,14 @@ public class RiskMonitoringService : IRiskMonitoringService
             evaluationResult.SymbolRulesEvaluated,
             evaluationResult.SymbolMetricCount);
 
+        var resolvedAlerts = await _alertService.ResolveStaleAlertsAsync(
+            evaluationResult.AlertCandidates,
+            cancellationToken);
+
+        _logger.LogInformation(
+            "Risk monitoring stale alert reconciliation completed. ResolvedAlertCount={ResolvedAlertCount}.",
+            resolvedAlerts.Count);
+
         var savedAlerts = await _alertService.SaveAlertCandidatesAsync(
             evaluationResult.AlertCandidates,
             cancellationToken);
@@ -126,18 +129,28 @@ public class RiskMonitoringService : IRiskMonitoringService
             .CountAsync(alert => alert.IsActive, cancellationToken);
 
         var criticalAlertCount = await _dbContext.RiskAlerts
-            .CountAsync(alert => alert.IsActive && alert.Severity == AlertSeverity.Critical, cancellationToken);
+            .CountAsync(
+                alert => alert.IsActive && alert.Severity == AlertSeverity.Critical,
+                cancellationToken);
 
         var highAlertCount = await _dbContext.RiskAlerts
-            .CountAsync(alert => alert.IsActive && alert.Severity == AlertSeverity.High, cancellationToken);
+            .CountAsync(
+                alert => alert.IsActive && alert.Severity == AlertSeverity.High,
+                cancellationToken);
 
         var mediumAlertCount = await _dbContext.RiskAlerts
-            .CountAsync(alert => alert.IsActive && alert.Severity == AlertSeverity.Medium, cancellationToken);
+            .CountAsync(
+                alert => alert.IsActive && alert.Severity == AlertSeverity.Medium,
+                cancellationToken);
 
         var lowAlertCount = await _dbContext.RiskAlerts
-            .CountAsync(alert => alert.IsActive && alert.Severity == AlertSeverity.Low, cancellationToken);
+            .CountAsync(
+                alert => alert.IsActive && alert.Severity == AlertSeverity.Low,
+                cancellationToken);
 
-        var status = javaBackendReachable ? "COMPLETED" : "JAVA_BACKEND_UNAVAILABLE";
+        var status = javaBackendReachable
+            ? "COMPLETED"
+            : "JAVA_BACKEND_UNAVAILABLE";
 
         var message = BuildMonitoringMessage(
             javaBackendReachable,
@@ -146,7 +159,8 @@ public class RiskMonitoringService : IRiskMonitoringService
             symbolMonitoringAvailable,
             validSymbols.Count,
             evaluationResult.AlertCandidateCount,
-            savedAlerts.Count);
+            savedAlerts.Count,
+            resolvedAlerts.Count);
 
         var snapshot = new MonitoringSnapshot
         {
@@ -231,23 +245,24 @@ public class RiskMonitoringService : IRiskMonitoringService
         bool symbolMonitoringAvailable,
         int symbolCount,
         int alertCandidateCount,
-        int savedAlertCount)
+        int savedAlertCount,
+        int resolvedAlertCount)
     {
         if (!javaBackendReachable)
         {
-            return $"Monitoring run completed, but Java backend was unavailable. Alert candidates generated={alertCandidateCount}, new alerts saved={savedAlertCount}.";
+            return $"Monitoring run completed, but Java backend was unavailable. Alert candidates generated={alertCandidateCount}, new alerts saved={savedAlertCount}, stale alerts resolved={resolvedAlertCount}.";
         }
 
         if (!reportSummaryAvailable)
         {
-            return $"Monitoring run completed, but Java backend report summary was unavailable. Alert candidates generated={alertCandidateCount}, new alerts saved={savedAlertCount}.";
+            return $"Monitoring run completed, but Java backend report summary was unavailable. Alert candidates generated={alertCandidateCount}, new alerts saved={savedAlertCount}, stale alerts resolved={resolvedAlertCount}.";
         }
 
         if (portfolioMonitoringAvailable && !symbolMonitoringAvailable)
         {
-            return $"Monitoring run completed with portfolio-level monitoring only. No symbol-level metrics were returned by the Java backend. Alert candidates generated={alertCandidateCount}, new alerts saved={savedAlertCount}.";
+            return $"Monitoring run completed with portfolio-level monitoring only. No symbol-level metrics were returned by the Java backend. Alert candidates generated={alertCandidateCount}, new alerts saved={savedAlertCount}, stale alerts resolved={resolvedAlertCount}.";
         }
 
-        return $"Monitoring run completed with portfolio-level and symbol-level monitoring. Symbol count={symbolCount}. Alert candidates generated={alertCandidateCount}, new alerts saved={savedAlertCount}.";
+        return $"Monitoring run completed with portfolio-level and symbol-level monitoring. Symbol count={symbolCount}. Alert candidates generated={alertCandidateCount}, new alerts saved={savedAlertCount}, stale alerts resolved={resolvedAlertCount}.";
     }
 }

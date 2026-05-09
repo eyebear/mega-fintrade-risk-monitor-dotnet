@@ -10,6 +10,9 @@ public class FakeAlertService : IAlertService
     public IReadOnlyList<RiskAlertCandidate> LastSavedCandidates { get; private set; } =
         Array.Empty<RiskAlertCandidate>();
 
+    public IReadOnlyList<RiskAlertCandidate> LastStaleResolutionCandidates { get; private set; } =
+        Array.Empty<RiskAlertCandidate>();
+
     public Task<IReadOnlyList<RiskAlert>> GetAllAlertsAsync(
         string? symbol = null,
         CancellationToken cancellationToken = default)
@@ -82,6 +85,36 @@ public class FakeAlertService : IAlertService
         return Task.FromResult<IReadOnlyList<RiskAlert>>(savedAlerts);
     }
 
+    public Task<IReadOnlyList<RiskAlert>> ResolveStaleAlertsAsync(
+        IReadOnlyList<RiskAlertCandidate> currentAlertCandidates,
+        CancellationToken cancellationToken = default)
+    {
+        LastStaleResolutionCandidates = currentAlertCandidates;
+
+        var currentAlertKeys = currentAlertCandidates
+            .Select(CreateCandidateKey)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var resolvedAlerts = new List<RiskAlert>();
+        var resolvedAtUtc = DateTime.UtcNow;
+
+        foreach (var activeAlert in Alerts.Where(alert => alert.IsActive))
+        {
+            var activeAlertKey = CreateAlertKey(activeAlert);
+
+            if (currentAlertKeys.Contains(activeAlertKey))
+            {
+                continue;
+            }
+
+            activeAlert.IsActive = false;
+            activeAlert.ResolvedAtUtc = resolvedAtUtc;
+            resolvedAlerts.Add(activeAlert);
+        }
+
+        return Task.FromResult<IReadOnlyList<RiskAlert>>(resolvedAlerts);
+    }
+
     public Task<RiskAlert?> ResolveAlertAsync(
         long id,
         CancellationToken cancellationToken = default)
@@ -126,11 +159,37 @@ public class FakeAlertService : IAlertService
 
         var normalizedSymbol = symbol.Trim().ToUpperInvariant();
 
-        return alerts.Where(alert =>
-            string.Equals(
-                alert.Symbol,
-                normalizedSymbol,
-                StringComparison.OrdinalIgnoreCase));
+        return alerts.Where(alert => string.Equals(
+            alert.Symbol,
+            normalizedSymbol,
+            StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static string CreateCandidateKey(RiskAlertCandidate candidate)
+    {
+        return CreateAlertKey(
+            candidate.Type,
+            candidate.Symbol,
+            candidate.SourceEndpoint);
+    }
+
+    private static string CreateAlertKey(RiskAlert alert)
+    {
+        return CreateAlertKey(
+            alert.Type,
+            alert.Symbol,
+            alert.SourceEndpoint);
+    }
+
+    private static string CreateAlertKey(
+        AlertType alertType,
+        string? symbol,
+        string sourceEndpoint)
+    {
+        var normalizedSymbol = NormalizeNullableSymbol(symbol) ?? "PORTFOLIO_OR_SYSTEM";
+        var normalizedSourceEndpoint = sourceEndpoint.Trim().ToUpperInvariant();
+
+        return $"{alertType}|{normalizedSymbol}|{normalizedSourceEndpoint}";
     }
 
     private static string? NormalizeNullableSymbol(string? symbol)

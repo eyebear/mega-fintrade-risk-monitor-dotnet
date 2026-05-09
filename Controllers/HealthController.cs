@@ -3,19 +3,25 @@ using Microsoft.AspNetCore.Mvc;
 namespace MegaFintradeRiskMonitor.Controllers;
 
 [ApiController]
-[Route("api/health")]
 public class HealthController : ControllerBase
 {
-    [HttpGet]
-    public IActionResult GetHealth()
+    [HttpGet("/health")]
+    public ActionResult<HealthResponse> GetHealth()
     {
-        return Ok(new
+        return Ok(new HealthResponse
         {
-            service = "mega-fintrade-risk-monitor-dotnet",
-            status = "UP",
-            role = "Mega Fintrade Risk Monitor .NET",
-            description = "C#/.NET risk monitoring, alerting, dashboard, and AI-ready integration service",
-            timestampUtc = DateTime.UtcNow
+            Status = "UP",
+            Service = "mega-fintrade-risk-monitor-dotnet",
+            TimestampUtc = DateTime.UtcNow
         });
     }
+}
+
+public class HealthResponse
+{
+    public string Status { get; set; } = string.Empty;
+
+    public string Service { get; set; } = string.Empty;
+
+    public DateTime TimestampUtc { get; set; }
 }

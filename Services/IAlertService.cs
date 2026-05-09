@@ -24,6 +24,10 @@ public interface IAlertService
         IReadOnlyList<RiskAlertCandidate> alertCandidates,
         CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyList<RiskAlert>> ResolveStaleAlertsAsync(
+        IReadOnlyList<RiskAlertCandidate> currentAlertCandidates,
+        CancellationToken cancellationToken = default);
+
     Task<RiskAlert?> ResolveAlertAsync(
         long id,
         CancellationToken cancellationToken = default);
